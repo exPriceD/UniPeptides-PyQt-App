@@ -9,8 +9,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 from openpyxl.styles import Alignment
 
-# Time
-import time
+import os
 
 from numba import njit, prange
 
@@ -34,7 +33,7 @@ class Parser:
         self.protein_name = protein_name
 
     def parsing_uniprot(self):
-        data = ["None", "None", "None", "None"]
+        data = None
         try:
             urluniprot = f'https://rest.uniprot.org/uniprotkb/{self.protein_name}.json'
             session = requests.Session()
@@ -48,7 +47,7 @@ class Parser:
         finally:
             return data
 
-    def parsing_fasta(self):
+    '''def parsing_fasta(self):
         count_try = 0
         data = ''
         while count_try != 3:
@@ -61,76 +60,57 @@ class Parser:
                 return data
             except BaseException:
                 count_try += 1
-        return data
+        return data'''
 
 
 class InformationHandler:
-    def __init__(self, uniprot_data, fasta_data):
+    def __init__(self, uniprot_data):
         self.uniprot_data = uniprot_data
-        self.fasta_data = fasta_data
 
-    def fasta_processing(self):
-        result_list = ['None', 'None', 'None', 'None', 'None', 'None', 'None']
+    def processing(self):
+        result_dict = {
+            "proteinName": "None",
+            "entryName": "None",
+            "entryType": "None",
+            "fullName": "None",
+            "scientificName": "None",
+            "commonName": "None",
+            "genes": "None",
+            "proteinExistence": "None",
+            "Length": "None",
+            "massDa": "None",
+        }
+        sequence = ''
         try:
-            file = self.fasta_data
-            position1 = file.find('|', 1)
-            name_protein = file[file.find(
-                '|', 1) + 1: file.find('|', position1 + 1)]
-            entry_name = file[file.find(
-                '|', position1 + 1) + 1: file.find(' ')]
-            protein = file[file.find(' ') + 1: file.find('OS')]
-            os = file[file.find('=') + 1: file.find('OX')]
-            gen = file[file.find('GN') + 3: file.find('PE')]
-            startchain = file.find('\n') + 1
-            chain_with_space = file[startchain:len(file)]
+            protein_json = self.uniprot_data
 
-            @njit(fastmath=True)
-            def get_chain():
-                chain = ''
-                for i in prange(len(chain_with_space)):
-                    if chain_with_space[i] != '\n':
-                        chain += chain_with_space[i]
-                return chain
+            result_dict["proteinName"] = protein_json["primaryAccession"]
 
-            chain = get_chain()
-            length_chain = len(chain)
+            result_dict["entryName"] = protein_json["uniProtkbId"]
 
-            result_list = [
-                name_protein,
-                entry_name,
-                protein,
-                os,
-                gen,
-                length_chain,
-                chain
-            ]
-            return result_list
+            result_dict["fullName"] = protein_json["proteinDescription"]["recommendedName"]["fullName"]["value"]
+
+            result_dict["scientificName"] = protein_json["organism"]["scientificName"]
+
+            result_dict["genes"] = protein_json["genes"][0]["geneName"]["value"]
+
+            temp = str(protein_json["sequence"]["molWeight"])
+            result_dict["massDa"] = f'{temp[0:2]},{temp[2:len(temp)]}'
+
+            entryType = protein_json["entryType"]
+            result_dict["entryType"] = entryType[entryType.find('(') + 1: len(entryType) - 1]
+
+            result_dict["commonName"] = protein_json["organism"]["commonName"]
+
+            result_dict["proteinExistence"] = protein_json["proteinExistence"][3:len(protein_json["proteinExistence"])]
+
+            sequence = protein_json["sequence"]["value"]
+
+            result_dict["Length"] = protein_json["sequence"]["length"]
+            return result_dict, sequence
 
         except BaseException:
-            print("returned NONE")
-            return result_list
-
-    def uniprot_processing(self):
-        result_list = ["None", "None", "None", "None"]
-        try:
-            data = self.uniprot_data
-            mass_da = str(data["sequence"]["molWeight"])[0:2] + ',' + str(data["sequence"]["molWeight"])[2:len(
-                str(data["sequence"]["molWeight"]))]
-            status = data["entryType"]
-            status = status[status.find('(') + 1: len(status) - 1]
-            organism = data["organism"]["commonName"]
-            existence = data["proteinExistence"][3:len(data["proteinExistence"])]
-            result_list = [mass_da, status, organism, existence]
-            """result_list.append(mass_da)
-            result_list.append(status)
-            result_list.append(organism)
-            result_list.append(existence)"""
-
-            return result_list
-
-        except BaseException:
-            print('returned None')
-            return result_list
+            return result_dict, sequence
 
 
 class Creater:
@@ -141,7 +121,7 @@ class Creater:
         config = open("cfg/User_config.txt", "r", encoding="utf-8")
         line = config.readline()
         config.close()
-        save_path = line[(line.find("Save_Path:") + len("Save_Path:")): line.find("@") - 1]
+        save_path = line[(line.find("Save_Path:") + 10): line.find("@") - 1]
         filepath = f'{save_path}/{self.filename}.xlsx'
         wb = openpyxl.Workbook()
         sheet = wb['Sheet']
@@ -150,9 +130,9 @@ class Creater:
 
 
 class Writer:
-    def __init__(self, uniprot_result, fasta_result):
+    def __init__(self, uniprot_result: dict, sequence: str):
         self.uniprot_result = uniprot_result
-        self.fasta_result = fasta_result
+        self.sequence = sequence
 
         self.columns = ['Entry identifier', 'Entry name', 'Status', 'Protein name',
                         'Organism (scientific name)', 'Organism (common name)',
@@ -169,27 +149,13 @@ class Writer:
         config.close()
 
     def filling_main_info(self):
-        main_data_list = [
-            self.fasta_result[0],
-            self.fasta_result[1],
-            self.uniprot_result[1],
-            self.fasta_result[2],
-            self.fasta_result[3],
-            self.uniprot_result[2],
-            self.fasta_result[4],
-            self.uniprot_result[3],
-            self.fasta_result[5],
-            self.uniprot_result[0]
-        ]
-
         cfg = self.line
         cfg = cfg[cfg.find("Excel filters:") + 14: cfg.find("Excel filters:") + 14 + 19]
         for i in prange(0, 10):
             if cfg[i] == '0':
                 self.columns[i] = ' '
-                main_data_list[i] = ' '
 
-        wb = load_workbook(f'{self.save_path}/{main_data_list[0]}.xlsx')
+        wb = load_workbook(f'{self.save_path}/{self.uniprot_result["proteinName"]}.xlsx')
         result = wb.active
 
         is_checked = 0
@@ -215,11 +181,11 @@ class Writer:
             fill_type="solid")
 
         is_checked = 0
-        for i in prange(len(main_data_list)):
+        for i, key in enumerate(self.uniprot_result.keys(), start=0):
             if self.columns[i] == ' ':
                 is_checked += 1
             else:
-                result.cell(row=3, column=i + 2 - is_checked).value = main_data_list[i]
+                result.cell(row=3, column=i + 2 - is_checked).value = self.uniprot_result[key]
                 result.cell(row=3, column=i + 2 - is_checked).font = Font(color="C00000")
                 result.cell(row=3, column=i + 2 - is_checked).alignment = Alignment(horizontal='left')
 
@@ -236,7 +202,7 @@ class Writer:
             adjusted_width = (max_length + 2) * 1.2
             result.column_dimensions[column].width = adjusted_width
 
-        wb.save(f"{self.save_path}/{main_data_list[0]}.xlsx")
+        wb.save(f'{self.save_path}/{self.uniprot_result["proteinName"]}.xlsx')
 
     def filling_peptides_info(self):
         cfg = self.line
@@ -249,8 +215,7 @@ class Writer:
             if cfg[i] == '0':
                 self.columns_aminos[i - 16] = ' '
 
-        chain = self.fasta_result[6]
-        wb = load_workbook(f'{self.save_path}/{self.fasta_result[0]}.xlsx')
+        wb = load_workbook(f'{self.save_path}/{self.uniprot_result["proteinName"]}.xlsx')
         result = wb.active
 
         file_peptides = open('cfg/Peptides.txt', "r")
@@ -260,7 +225,7 @@ class Writer:
         pep_flag = False
         for i in prange(len(peptides_array)):
             count_peptide = 0
-            if peptides_array[i] in chain:
+            if peptides_array[i] in self.sequence:
                 pep_flag = True
                 first_r = r
                 not_checked = 0
@@ -303,21 +268,21 @@ class Writer:
                     end_color="DAEEF3",
                     fill_type="solid")
 
-                for j in prange(len(chain)):
-                    if chain[j: j + len(peptides_array[i])
+                for j in prange(len(self.sequence)):
+                    if self.sequence[j: j + len(peptides_array[i])
                        ] == peptides_array[i]:
                         count_peptide += 1
                         leftpos = j + 1
                         rigthpos = j + len(peptides_array[i])
                         if j == 0:
                             nter = 'None'
-                            cter = chain[j + len(peptides_array[i])]
-                        elif j == len(chain) - 1:
-                            nter = chain[j - 1]
+                            cter = self.sequence[j + len(peptides_array[i])]
+                        elif j == len(self.sequence) - 1:
+                            nter = self.sequence[j - 1]
                             cter = 'None'
                         else:
-                            nter = chain[j - 1]
-                            cter = chain[j + len(peptides_array[i])]
+                            nter = self.sequence[j - 1]
+                            cter = self.sequence[j + len(peptides_array[i])]
                         if position_col[0] != -1:
                             result.cell(
                                 row=r + count_peptide,
@@ -349,7 +314,7 @@ class Writer:
 
                 category = 1200
                 peptide_id = i + 1
-                relative = round((count_peptide * 1000) / len(chain), 2)
+                relative = round((count_peptide * 1000) / len(self.sequence), 2)
                 peptide = peptides_array[i]
                 length_peptide = len(peptide)
                 value_list = [category, peptide_id, peptide, length_peptide, count_peptide, relative]
@@ -392,52 +357,30 @@ class Writer:
             result.column_dimensions[column].width = adjusted_width
 
         result.column_dimensions['A'].width = 4
-        wb.save(f"{self.save_path}/{self.fasta_result[0]}.xlsx")
+        wb.save(f'{self.save_path}/{self.uniprot_result["proteinName"]}.xlsx')
 
 
 def main():
     file_prot = open("cfg/Proteins.txt", "r")
-    #Settings.updateValue(100)
     proteins = file_prot.readline()
     file_prot.close()
     names = list(proteins.split(' '))
-    #Ui_MainWindow.updateProgress(50)
     count = len(names)
-    print(names)
-    num_of_pep = 0
     errors_cnt = 0
     for protein in names:
-        p = int((100 // count) * num_of_pep)
-        num_of_pep += 1
-        print(f"{p + (10 // count) * num_of_pep}%")
         protein.upper()
         check = Checker(protein_name=protein)
-        print(f"{p + (15 // count) * num_of_pep}%")
         if (protein != ' ' or '') and check.url_existence():
-            print(f"{p + (30 // count) * num_of_pep}%")
             parser = Parser(protein_name=protein)
-            fasta = parser.parsing_fasta()
-            print(f"{p + (40 // count) * num_of_pep}%")
-            # print("Fasta parse - OK")
             uniprot = parser.parsing_uniprot()
-            # print("Uniprot parse - OK")
-            print(f"{p + (50 // count) * num_of_pep}%")
-            handler = InformationHandler(uniprot_data=uniprot, fasta_data=fasta)
-            fasta_result = handler.fasta_processing()
-            uniprot_result = handler.uniprot_processing()
-            print(f"{p + (60 // count) * num_of_pep}%")
+            handler = InformationHandler(uniprot_data=uniprot)
+            uniprot_result, sequence = handler.processing()
+            print(uniprot_result)
             creater = Creater(protein)
             creater.creating_excel()
-            # print("Create EXCEL - OK")
-            print(f"{p + (80 // count) * num_of_pep}%")
-            writer = Writer(uniprot_result=uniprot_result, fasta_result=fasta_result)
+            writer = Writer(uniprot_result=uniprot_result, sequence=sequence)
             writer.filling_main_info()
-            # print("main info - OK")
-            print(f"{p + (90 // count) * num_of_pep}%")
             writer.filling_peptides_info()
-            # print("pep info - OK")
-            # print(f'{peptide} ready')
-            print(f"{int((100 // count) * num_of_pep)}%")
         else:
             errors_cnt += 1
             if errors_cnt == 1:
@@ -447,10 +390,13 @@ def main():
                 logs = open("cfg/Log error.txt", "a")
                 logs.write(f"{protein} ")
 
-try:
-    main()
-except:
-    pass
+#try:
+import time
+st = time.time()
+main()
+print(time.time() - st)
+#except:
+    #pass
 exit()
 
 
