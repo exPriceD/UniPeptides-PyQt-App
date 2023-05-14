@@ -3,6 +3,8 @@ from PyQt5.QtWidgets import QFileDialog, QMessageBox, QApplication
 from PyQt5.QtCore import QProcess
 from setup import setupConfig
 import sys
+import json
+import re
 
 
 def screenSize():
@@ -590,133 +592,49 @@ class Ui_MainWindow(object):
     def send_proteins(self):
         self.prot_value = self.searchbox.text()
         self.peptides_value = self.lineEdit.text()
-        self.searchbox.setText("")
-        self.lineEdit.setText("")
         if len(self.peptides_value) > 1:
-            try:
-                fpeptides = open("cfg/Peptides.txt", "w")
-                fpeptides.write(self.peptides_value)
-                fpeptides.close()
-            except BaseException:
-                print('Saving proteins - error')
+            with open("config.json", "r") as cfg:
+                config_data = json.load(cfg)
+                #Qqwqqw wqwqq;wqwqqw
+                config_data["peptides"]["value"].extend(filter(None, re.split('[;, .]+', self.peptides_value)))
+            with open("config.json", "w") as cfg:
+                json.dump(config_data, cfg, indent=4)
         try:
             save_path = QFileDialog.getExistingDirectory()
-            line = self.get_line("User_config.txt")
-            if "Save_Path:" not in line:
-                config = open("cfg/User_config.txt", "w", encoding="utf-8")
-                new_line = line + f"Save_Path:{save_path} @"
-                config.write(new_line)
-                config.close()
-            else:
-                config = open("cfg/User_config.txt", "w", encoding="utf-8")
-                save_path_index = line.find("Save_Path:")
-                if save_path != line[save_path_index + 10: save_path_index + 10 + line.find("@") - 1]:
-                    new_line = line[0: line.find("Save_Path:")] + line[line.find("@") + 1: len(
-                        line)] + f" Save_Path:{save_path} @"
-                    config.write(new_line)
-                    config.close()
-
-            line = self.get_line("User_config.txt")
-            filters = ''
-            if self.entry_identifier.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.entry_name.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.status.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.protein_name.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.org_s.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.org_c.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.gene.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.protein_existence.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.length.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.mass.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.category.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.id.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.sequence.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.seq_length.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.occurrence.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.relative.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.position.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.nter.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if self.cter.isChecked():
-                filters += '1'
-            else:
-                filters += '0'
-            if "Excel filters:" not in line:
-                config = open("cfg/User_config.txt", "w", encoding="utf-8")
-                with config:
-                    new_line = line + ' ' + f'Excel filters:{filters}'
-                    config.write(new_line)
-                    config.close()
-            else:
-                config = open("cfg/User_config.txt", "r", encoding="utf-8")
-                cfg = config.readline()
-                config.close()
-                filters_index = cfg.find("Excel filters:")
-                if filters != cfg[filters_index + 14: filters_index + 34]:
-                    config = open("cfg/User_config.txt", "w", encoding="utf-8")
-                    new_line = cfg[0: filters_index] + cfg[filters_index + 34: len(cfg)] + f" Excel filters:{filters}"
-                    config.write(new_line)
-                    config.close()
-
+            self.searchbox.setText("")
+            self.lineEdit.setText("")
+            with open("config.json", "r") as cfg:
+                config_data = json.load(cfg)
+                config_data["savePath"]["value"] = save_path
+                config_data["excelFilters"]["entryIdentifier"] = self.entry_identifier.isChecked()
+                config_data["excelFilters"]["entryName"] = self.entry_name.isChecked()
+                config_data["excelFilters"]["entryType"] = self.status.isChecked()
+                config_data["excelFilters"]["fullName"] = self.protein_name.isChecked()
+                config_data["excelFilters"]["scientificName"] = self.org_s.isChecked()
+                config_data["excelFilters"]["commonName"] = self.org_c.isChecked()
+                config_data["excelFilters"]["genes"] = self.gene.isChecked()
+                config_data["excelFilters"]["proteinExistence"] = self.protein_existence.isChecked()
+                config_data["excelFilters"]["length"] = self.length.isChecked()
+                config_data["excelFilters"]["massDa"] = self.mass.isChecked()
+                config_data["excelFilters"]["category"] = self.category.isChecked()
+                config_data["excelFilters"]["id"] = self.id.isChecked()
+                config_data["excelFilters"]["sequence"] = self.sequence.isChecked()
+                config_data["excelFilters"]["sequence_length"] = self.seq_length.isChecked()
+                config_data["excelFilters"]["occurrence"] = self.occurrence.isChecked()
+                config_data["excelFilters"]["relative"] = self.relative.isChecked()
+                config_data["excelFilters"]["position"] = self.position.isChecked()
+                config_data["excelFilters"]["nter"] = self.nter.isChecked()
+                config_data["excelFilters"]["cter"] = self.cter.isChecked()
+            with open("config.json", "w") as cfg:
+                json.dump(config_data, cfg, indent=4)
             if len(self.prot_value) > 1:
                 try:
-                    with open("cfg/Proteins.txt", "w", encoding="utf-8") as file_prot:
-                        line = str(self.prot_value)
-                        file_prot.write(line)
-                        file_prot.close()
+                    with open("config.json", "r") as cfg:
+                        config_data = json.load(cfg)
+                        config_data["proteins"]["value"].extend(filter(None, re.split('[;, .]+', self.prot_value)))
+
+                    with open("config.json", "w") as cfg:
+                        json.dump(config_data, cfg, indent=4)
                     try:
                         self.btn_enter.setEnabled(False)
                         self.btn_input_file_2.setEnabled(False)
@@ -724,7 +642,9 @@ class Ui_MainWindow(object):
                         self.progressBar.setEnabled(True)
                         self.backgroundStream = QProcess()
                         self.backgroundStream.finished.connect(self.finish)
-                        self.backgroundStream.start('python', ["back.py"])
+                        #self.backgroundStream.readyRead.connect(self.readOut)
+                        #self.backgroundStream.start('python', ["back_asyncio.py"])
+                        self.backgroundStream.start("back_asyncio.exe")
                         self.count_time = 0
                         self.timer.start(700)
                         while self.count_time < 19:
@@ -732,9 +652,9 @@ class Ui_MainWindow(object):
                             QApplication.processEvents()
                     except Exception as e:
                         print(e)
-                except BaseException:
-                    print('QProcess - error (1)')
-                    self.proteinErrorMessage(line=line)
+                except BaseException as e:
+                    print(e)
+                    #self.proteinErrorMessage(line=line)
 
             else:
                 try:
@@ -753,7 +673,7 @@ class Ui_MainWindow(object):
                         self.progressBar.setEnabled(True)
                         self.backgroundStream = QProcess()
                         self.backgroundStream.finished.connect(self.finish)
-                        self.backgroundStream.startDetached('python', ["back.py"])
+                        self.backgroundStream.started('python', ["back_asyncio.py"])
                         self.count_time = 0
                         self.timer.start(700)
                         while self.count_time < 19:
@@ -763,14 +683,18 @@ class Ui_MainWindow(object):
                         print('QProcess - error (2)')
                 except BaseException:
                     print("User file - error")
-                    self.proteinErrorMessage(line=line)
+                    #self.proteinErrorMessage(line=line)
 
-        except BaseException:
-            print('Input error')
+        except BaseException as e:
+            print(e)
             logs = open("cfg/Log error.txt")
             line = logs.readline()
             if len(line) > 2:
                 self.proteinErrorMessage(line=line)
+
+    def readOut(self):
+        out = self.backgroundStream.readAll()
+        print(out)
 
     def finish(self):
         self.backgroundStream = None
@@ -800,30 +724,31 @@ class Ui_MainWindow(object):
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
 
-    def readOut(self):
-        out = self.backgroundStream.readAll()
-        out = str(out).rstrip().replace("b", '')
-        print(out[1:out.find('%') + 1])
-        try:
-            self.progressBar.setValue(int(out[1:out.find('%')]))
-        except:
-            pass
 
     def open_database(self):
         try:
-            self.database_name = QFileDialog.getOpenFileName()[0]
-            db = open("cfg/Database.txt", "w")
-            db.write(self.database_name)
-            data = self.database_name.split('/')
-            self.database_name = data[-1]
+            self.database_path = QFileDialog.getOpenFileName()[0]
+            with open(self.database_path, 'r') as user_peptides:
+                user_peptides_list = list(filter(None, re.split('[;, .]+', user_peptides.readline())))
+                user_peptides.close()
+
+            with open("config.json", "r") as cfg:
+                config_data = json.load(cfg)
+                config_data["peptides"]["value"].extend(user_peptides_list)
+
+            with open("config.json", "w") as cfg:
+                json.dump(config_data, cfg, indent=4)
+
+            data = self.database_path.split('/')
+            self.database_path = data[-1]
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
             msg.setWindowTitle("Ready")
-            msg.setText(f"Selected: {self.database_name}")
+            msg.setText(f"Selected: {self.database_path}")
             msg.setFixedSize(600, 600)
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
-            self.btn_input_db.setText(f"{self.database_name}")
+            self.btn_input_db.setText(f"{self.database_path}")
             self.btn_input_db.adjustSize()
             self.btn_input_db.setGeometry(QtCore.QRect(280, 600, self.btn_input_db.width() + 5, 31))
         except BaseException:
@@ -831,16 +756,19 @@ class Ui_MainWindow(object):
 
     def open_input(self):
         try:
-            self.fname = QFileDialog.getOpenFileName()[0]
-            f = open(self.fname, 'r')
-            with f:
-                data = f.read()
-                f.close()
-            user_proteins = open(
-                "cfg/User_proteins.txt", "w", encoding="utf-8")
-            user_proteins.write(data)
-            user_proteins.close()
-            data = self.fname.split('/')
+            self.proteins_path = QFileDialog.getOpenFileName()[0]
+            with open(self.proteins_path, 'r') as user_proteins:
+                user_proteins_list = list(filter(None, re.split('[;, .]+', user_proteins.readline())))
+                user_proteins.close()
+
+            with open("config.json", "r") as cfg:
+                config_data = json.load(cfg)
+                config_data["proteins"]["value"].extend(user_proteins_list)
+
+            with open("config.json", "w") as cfg:
+                json.dump(config_data, cfg, indent=4)
+
+            data = self.proteins_path.split('/')
             self.filename = data[-1]
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
@@ -880,6 +808,7 @@ class Ui_MainWindow(object):
             line = file.readline()
             file.close()
             return line
+
 
 if __name__ == "__main__":
     setupConfig()
