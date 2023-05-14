@@ -1,0 +1,51 @@
+{
+    "proteins": {
+        "value": [
+            "Q14050",
+            "P05067",
+            "Q6ZWK4",
+            "P15529",
+            "O95273"
+        ]
+    },
+    "peptides": {
+        "value": [
+            "GPPG",
+            "FFF",
+            "TTT",
+            "NAN",
+            "AAA",
+            "A"
+        ]
+    },
+    "savePath": {
+        "value": "C:/Users/loler/PycharmProjects/UniPeptides/dist/cfg"
+    },
+    "databasePath": {
+        "value": ""
+    },
+    "proteinsPath": {
+        "value": ""
+    },
+    "excelFilters": {
+        "entryIdentifier": true,
+        "entryName": true,
+        "entryType": true,
+        "fullName": true,
+        "scientificName": true,
+        "commonName": true,
+        "genes": true,
+        "proteinExistence": true,
+        "length": true,
+        "massDa": false,
+        "category": false,
+        "id": false,
+        "sequence": true,
+        "sequence_length": true,
+        "occurrence": true,
+        "relative": true,
+        "position": true,
+        "nter": true,
+        "cter": true
+    }
+}
