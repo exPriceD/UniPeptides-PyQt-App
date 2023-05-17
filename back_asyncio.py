@@ -256,102 +256,108 @@ class Writer:
         wb.save(f'{self.save_path}/{self.uniprot_result["proteinName"]}.xlsx')
 
 
-def error_logs(errors_count: int, protein: str):
-    if errors_count == 1:
-        logs = open("cfg/Log error.txt", "w")
-        logs.write(f"{protein} ")
-    else:
-        logs = open("cfg/Log error.txt", "a")
-        logs.write(f"{protein} ")
+class ErrorsHandler:
+    pass
 
 
-async def get_json(session, protein):
-    urluniprot = f'https://rest.uniprot.org/uniprotkb/{protein}.json'
-    async with session.get(url=urluniprot) as response:
-        response_json = await response.json()
-        keys = response_json.keys()
-        if "messages" in keys and "url" in keys:
-            return False
-        result_dict = {
-            "proteinName": "None",
-            "entryName": "None",
-            "entryType": "None",
-            "fullName": "None",
-            "scientificName": "None",
-            "commonName": "None",
-            "genes": "None",
-            "proteinExistence": "None",
-            "Length": "None",
-            "massDa": "None",
-        }
-        protein_json = response_json
+class AsyncParser:
+    def __init__(self, proteins: List):
+        self.proteins = proteins
+        self.parsing_result = []
+        self.sequences = []
 
-        result_dict["proteinName"] = protein_json["primaryAccession"]
+    def run_async_parsing(self):
+        try:
+            asyncio.run(self.gather_data())
+            return (self.parsing_result, self.sequences)
+        except BaseException:
+            pass
 
-        result_dict["entryName"] = protein_json["uniProtkbId"]
+    async def gather_data(self):
+       async with aiohttp.ClientSession() as session:
+            tasks = []
+            for protein in self.proteins:
+                task = asyncio.create_task(self.get_json(session, protein))
+                tasks.append(task)
 
-        result_dict["fullName"] = protein_json["proteinDescription"]["recommendedName"]["fullName"]["value"]
+            await asyncio.gather(*tasks)
 
-        result_dict["scientificName"] = protein_json["organism"]["scientificName"]
+    async def get_json(self, session, protein):
+        urluniprot = f'https://rest.uniprot.org/uniprotkb/{protein}.json'
+        async with session.get(url=urluniprot) as response:
+            response_json = await response.json()
+            keys = response_json.keys()
 
-        result_dict["genes"] = protein_json["genes"][0]["geneName"]["value"]
+            if "messages" in keys and "url" in keys:
+                with open("errorLogs.json", "r") as errorLogs:
+                    errors_data = json.load(errorLogs)
+                    errors_data["missing"]["proteins"].append(protein)
+                with open("errorLogs.json", "w") as errorLogs:
+                    json.dump(errors_data, errorLogs, indent=4)
+                return False
 
-        temp = str(protein_json["sequence"]["molWeight"])
-        result_dict["massDa"] = f'{temp[0:2]},{temp[2:len(temp)]}'
+            result_dict = {
+                "proteinName": "None",
+                "entryName": "None",
+                "entryType": "None",
+                "fullName": "None",
+                "scientificName": "None",
+                "commonName": "None",
+                "genes": "None",
+                "proteinExistence": "None",
+                "Length": "None",
+                "massDa": "None",
+            }
 
-        entryType = protein_json["entryType"]
-        result_dict["entryType"] = entryType[entryType.find('(') + 1: len(entryType) - 1]
+            protein_json = response_json
 
-        result_dict["commonName"] = protein_json["organism"]["commonName"]
+            result_dict["proteinName"] = protein_json["primaryAccession"]
 
-        result_dict["proteinExistence"] = protein_json["proteinExistence"][3:len(protein_json["proteinExistence"])]
+            result_dict["entryName"] = protein_json["uniProtkbId"]
 
-        sequence = protein_json["sequence"]["value"]
+            result_dict["fullName"] = protein_json["proteinDescription"]["recommendedName"]["fullName"]["value"]
 
-        result_dict["Length"] = protein_json["sequence"]["length"]
-        peptides_json.append(result_dict)
-        sequences.append(sequence)
-        print(f'Обработал {result_dict["proteinName"]}')
+            result_dict["scientificName"] = protein_json["organism"]["scientificName"]
 
+            result_dict["genes"] = protein_json["genes"][0]["geneName"]["value"]
 
-async def gather_data(proteins: List):
-    async with aiohttp.ClientSession() as session:
-        tasks = []
-        for protein in proteins:
-            task = asyncio.create_task(get_json(session, protein))
-            tasks.append(task)
+            temp = str(protein_json["sequence"]["molWeight"])
+            result_dict["massDa"] = f'{temp[0:2]},{temp[2:len(temp)]}'
 
-        await asyncio.gather(*tasks)
+            entryType = protein_json["entryType"]
+            result_dict["entryType"] = entryType[entryType.find('(') + 1: len(entryType) - 1]
 
+            result_dict["commonName"] = protein_json["organism"]["commonName"]
 
-def run_async_parsing(proteins: List):
-    try:
-        asyncio.run(gather_data(proteins))
-    except BaseException:
-        pass
+            result_dict["proteinExistence"] = protein_json["proteinExistence"][3:len(protein_json["proteinExistence"])]
+
+            sequence = protein_json["sequence"]["value"]
+
+            result_dict["Length"] = protein_json["sequence"]["length"]
+
+            self.parsing_result.append(result_dict)
+            self.sequences.append(sequence)
+            print(f'Обработал {result_dict["proteinName"]}')
 
 
 def async_creater(proteinName):
-    t = threading.Thread(target=Creater(proteinName).creating_excel())
-    t.start()
+    createrThread = threading.Thread(target=Creater(proteinName).creating_excel())
+    createrThread.start()
 
 
 def async_writer(uniprot_result, sequence):
     writer = Writer(uniprot_result=uniprot_result, sequence=sequence)
-    t1 = threading.Thread(target=writer.filling_main_info())
-    t2 = threading.Thread(target=writer.filling_peptides_info())
-    t1.start()
-    t2.start()
+    writerThread_main = threading.Thread(target=writer.filling_main_info())
+    writerThread_main_peptides = threading.Thread(target=writer.filling_peptides_info())
+    writerThread_main.start()
+    writerThread_main_peptides.start()
 
 
 def main():
     with open("config.json", "r") as config:
         config_data = json.load(config)
-    global peptides_json
-    global sequences
-    peptides_json = []
-    sequences = []
-    run_async_parsing(config_data["proteins"]["value"])
+    parser = AsyncParser(config_data["proteins"]["value"])
+    peptides_json, sequences = parser.run_async_parsing()
     for i in range(len(peptides_json)):
         uniprot_result = peptides_json[i]
         sequence = sequences[i]
