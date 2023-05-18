@@ -16,7 +16,7 @@ import threading
 
 import json
 from typing import List
-
+from asgiref.sync import async_to_sync
 
 class Creater:
     def __init__(self, filename):
@@ -257,7 +257,18 @@ class Writer:
 
 
 class ErrorsHandler:
-    pass
+    def __init__(self, missing_peptides: List):
+        self.missing_peptides = missing_peptides
+
+    def update_json(self):
+        with open("errorLogs.json", "r") as errorLogs:
+            errors_data = json.load(errorLogs)
+
+        for miss in self.missing_peptides:
+            errors_data["missing"]["proteins"].append(miss)
+
+        with open("errorLogs.json", "w") as errorLogs:
+            json.dump(errors_data, errorLogs, indent=4)
 
 
 class AsyncParser:
@@ -265,11 +276,14 @@ class AsyncParser:
         self.proteins = proteins
         self.parsing_result = []
         self.sequences = []
+        self.missing = []
+
+    def get_data(self):
+        return self.parsing_result, self.sequences, self.missing
 
     def run_async_parsing(self):
         try:
             asyncio.run(self.gather_data())
-            return (self.parsing_result, self.sequences)
         except BaseException:
             pass
 
@@ -289,12 +303,8 @@ class AsyncParser:
             keys = response_json.keys()
 
             if "messages" in keys and "url" in keys:
-                with open("errorLogs.json", "r") as errorLogs:
-                    errors_data = json.load(errorLogs)
-                    errors_data["missing"]["proteins"].append(protein)
-                with open("errorLogs.json", "w") as errorLogs:
-                    json.dump(errors_data, errorLogs, indent=4)
-                return False
+                self.missing.append(protein)
+                return
 
             result_dict = {
                 "proteinName": "None",
@@ -337,6 +347,8 @@ class AsyncParser:
 
             self.parsing_result.append(result_dict)
             self.sequences.append(sequence)
+            print(self.parsing_result)
+            print(self.sequences)
             print(f'Обработал {result_dict["proteinName"]}')
 
 
@@ -357,7 +369,11 @@ def main():
     with open("config.json", "r") as config:
         config_data = json.load(config)
     parser = AsyncParser(config_data["proteins"]["value"])
-    peptides_json, sequences = parser.run_async_parsing()
+    parser.run_async_parsing()
+    peptides_json, sequences, missing = parser.get_data()
+    if len(missing) > 0:
+        er_handler = ErrorsHandler(missing_peptides=missing)
+        er_handler.update_json()
     for i in range(len(peptides_json)):
         uniprot_result = peptides_json[i]
         sequence = sequences[i]
@@ -365,12 +381,13 @@ def main():
         async_writer(uniprot_result=uniprot_result, sequence=sequence)
 
 
-import time
-st = time.time()
+#import time
+#st = time.time()
 main()
-print(time.time() - st)
+#print(time.time() - st)
+#exit()
 
-exit()
+#+79214687099
 
 
 
