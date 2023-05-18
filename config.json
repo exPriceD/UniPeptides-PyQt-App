@@ -1,42 +1,12 @@
 {
     "proteins": {
-        "value": ["P04439",
-            "O95905",
-            "P42694",
-            "P08246",
-            "Q6ZWK4",
-            "P01889",
-            "P10321",
-            "Q6FHJ7",
-            "P15529",
-            "P29590",
-            "P78310",
-            "P01911",
-            "Q9UM44",
-            "Q8N884",
-            "O75970",
-            "P08174",
-            "Q86WV6",
-            "P06400",
-            "Q7L5Y9",
-            "O95273",
-            "Q9Y2H6",
-            "P05556",
-            "Q6P2E9",
-            "P31629",
-            "O75475",
-            "Q92956",
-            "Q8IZP9",
-            "Q86V81",
-            "P31358",
-            "P10144"
-        ]
+        "value": []
     },
     "peptides": {
-        "value": ["GPPG","ALT","AA","T","GA","GG","ATG","T"]
+        "value": []
     },
     "savePath": {
-        "value": "C:\\Users\\loler\\PycharmProjects\\UniPeptides\\static"
+        "value": ""
     },
     "databasePath": {
         "value": ""
