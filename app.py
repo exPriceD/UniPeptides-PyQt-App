@@ -1,16 +1,17 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QApplication, QWidget
+from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtCore import QProcess
-from PyQt5.QtCore import QObject, QThread, pyqtSignal, pyqtSlot
 from setup import setupConfig, saveFilters, creatingLogs
 import sys
 import json
 import re
 
+
 def screenSize():
     sizeObject = QtWidgets.QDesktopWidget().screenGeometry(-1)
     print("Screen size : " + str(sizeObject.width()) +
           "x" + str(sizeObject.height()))
+
 
 class Ui_MainWindow(object):
     def setupFilters(self):
@@ -799,8 +800,6 @@ class Ui_MainWindow(object):
             save_path = QFileDialog.getExistingDirectory()
             self.proteinsInput.setText("")
             self.peptidesInput.setText("")
-            self.progressBar.setMaximum(0)
-            self.progressBar.setEnabled(True)
             with open("config.json", "r") as cfg:
                 config_data = json.load(cfg)
                 config_data["savePath"]["value"] = save_path
@@ -834,15 +833,14 @@ class Ui_MainWindow(object):
                     with open("config.json", "w") as cfg:
                         json.dump(config_data, cfg, indent=4)
                     try:
+                        self.progressBar.setMaximum(0)
+                        self.progressBar.setEnabled(True)
                         self.btn_start.setEnabled(False)
                         self.btn_input_proteins.setEnabled(False)
                         self.progressBar.setEnabled(True)
-                        #self.backgroundStream = QProcess()
-                        #self.backgroundStream.finished.connect(self.finish)
-                        #self.backgroundStream.readyRead.connect(self.readOut)
-                        #self.backgroundStream.start('python', ["back_asyncio.py"])
-                        #self.backgroundStream.start("back_asyncio.exe")
-                        self.count_time = 0
+                        self.backgroundStream = QProcess()
+                        self.backgroundStream.finished.connect(self.finish)
+                        self.backgroundStream.start("run-back.cmd")
                     except Exception as e:
                         print(e)
                 except BaseException as e:
@@ -851,44 +849,24 @@ class Ui_MainWindow(object):
 
             else:
                 try:
-                    self.names = ''
-                    line = self.get_line("User_proteins.txt")
-                    for i in range(len(line)):
-                        self.names += line[i].rstrip('\n') + ' '
-                    prot = open("cfg/Proteins.txt", "w", encoding="utf-8")
-                    line = str(self.names)
-                    prot.write(line)
-                    prot.close()
-                    try:
+                        self.progressBar.setMaximum(0)
+                        self.progressBar.setEnabled(True)
                         self.btn_start.setEnabled(False)
                         self.btn_input_proteins.setEnabled(False)
                         self.progressBar.setEnabled(True)
                         self.backgroundStream = QProcess()
                         self.backgroundStream.finished.connect(self.finish)
-                        self.backgroundStream.started('python', ["back_asyncio.py"])
-                        self.count_time = 0
-                    except BaseException:
-                        print('QProcess - error (2)')
-                except BaseException:
-                    print("User file - error")
-                    #self.proteinErrorMessage(line=line)
-
-        except BaseException as e:
-            print(e)
-            logs = open("cfg/Log error.txt")
-            line = logs.readline()
-            if len(line) > 2:
-                self.proteinErrorMessage(line=line)
-
-    def readOut(self):
-        out = self.backgroundStream.readAll()
-        print(out)
+                        self.backgroundStream.start("run-back.cmd")
+                except Exception as e:
+                        print(e)
+        except:
+                pass
 
     def finish(self):
         self.backgroundStream = None
         self.btn_start.setEnabled(True)
         self.btn_input_proteins.setEnabled(True)
-        self.progressBar.setValue(100)
+        self.progressBar.setMaximum(100)
         self.progressBar.setEnabled(False)
 
         with open("errorLogs.json", "r") as logs:
@@ -911,11 +889,10 @@ class Ui_MainWindow(object):
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
 
-
     def open_database(self):
         try:
-            self.database_path = QFileDialog.getOpenFileName()[0]
-            with open(self.database_path, 'r') as user_peptides:
+            database_path = QFileDialog.getOpenFileName()[0]
+            with open(database_path, 'r') as user_peptides:
                 user_peptides_list = list(filter(None, re.split('[;, .]+', user_peptides.readline())))
                 user_peptides.close()
 
@@ -926,18 +903,18 @@ class Ui_MainWindow(object):
             with open("config.json", "w") as cfg:
                 json.dump(config_data, cfg, indent=4)
 
-            data = self.database_path.split('/')
-            self.database_path = data[-1]
+            data = database_path.split('/')
+            database_path = data[-1]
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
             msg.setWindowTitle("Ready")
-            msg.setText(f"Selected: {self.database_path}")
+            msg.setText(f"Selected: {database_path}")
             msg.setFixedSize(600, 600)
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
-            self.btn_input_proteins.setText(f"{self.database_path}")
-            self.btn_input_proteins.adjustSize()
-            self.btn_input_proteins.setGeometry(QtCore.QRect(280, 600, self.btn_input_proteins.width() + 5, 31))
+            self.btn_input_peptides.setText(f"{database_path}")
+            self.btn_input_peptides.adjustSize()
+            self.btn_input_peptides.setGeometry(QtCore.QRect(250, 730, self.btn_input_peptides.width() + 5, 31))
         except BaseException:
             pass
 
@@ -966,9 +943,14 @@ class Ui_MainWindow(object):
             msg.exec_()
             self.btn_input_proteins.setText(f"{self.filename}")
             self.btn_input_proteins.adjustSize()
-            self.btn_input_proteins.setGeometry(QtCore.QRect(250, 375, self.btn_input_proteins.width() + 5, 31))
+            self.btn_input_proteins.setGeometry(QtCore.QRect(250, 390, self.btn_input_proteins.width() + 5, 31))
         except BaseException:
-            print("Input userfile - error")
+                error_dialog = QMessageBox()
+                error_dialog.setIcon(QMessageBox.Critical)
+                error_dialog.setText("Error")
+                error_dialog.setInformativeText(f"Unexpected error")
+                error_dialog.setWindowTitle("Error")
+                error_dialog.exec_()
 
 
     def proteinErrorMessage(self, line):

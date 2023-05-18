@@ -1,7 +1,3 @@
-# Parse Fasta
-#import requests
-
-# Creating Excel
 import openpyxl
 from openpyxl.styles import Font
 from openpyxl import load_workbook
@@ -16,7 +12,6 @@ import threading
 
 import json
 from typing import List
-from asgiref.sync import async_to_sync
 
 class Creater:
     def __init__(self, filename):
@@ -384,8 +379,8 @@ def main():
 #import time
 #st = time.time()
 main()
+exit()
 #print(time.time() - st)
-#exit()
 
 #+79214687099
 
