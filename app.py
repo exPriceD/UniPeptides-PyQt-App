@@ -1,3 +1,5 @@
+import os
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtCore import QProcess
@@ -786,6 +788,9 @@ class Ui_MainWindow(object):
         self.btn_input_peptides.clicked.connect(self.open_database)
         self.btn_input_proteins.clicked.connect(self.open_input)
         self.btn_theme.clicked.connect(self.change_theme)
+        self.btn_open_results.clicked.connect(self.open_dir)
+        self.btn_del_results.clicked.connect(self.del_results)
+        self.btn_clear_all.clicked.connect(self.clear_all)
 
     def send_proteins(self):
         self.prot_value = self.proteinsInput.text()
@@ -835,6 +840,8 @@ class Ui_MainWindow(object):
                     try:
                         self.progressBar.setMaximum(0)
                         self.progressBar.setEnabled(True)
+                        self.btn_open_results.setEnabled(False)
+                        self.btn_del_results.setEnabled(False)
                         self.btn_start.setEnabled(False)
                         self.btn_input_proteins.setEnabled(False)
                         self.progressBar.setEnabled(True)
@@ -865,6 +872,8 @@ class Ui_MainWindow(object):
     def finish(self):
         self.backgroundStream = None
         self.btn_start.setEnabled(True)
+        self.btn_del_results.setEnabled(True)
+        self.btn_open_results.setEnabled(True)
         self.btn_input_proteins.setEnabled(True)
         self.progressBar.setMaximum(100)
         self.progressBar.setEnabled(False)
@@ -960,6 +969,33 @@ class Ui_MainWindow(object):
         error_dialog.setInformativeText(f"Proteins: {','.join(line)}")
         error_dialog.setWindowTitle("Error")
         error_dialog.exec_()
+
+    def open_dir(self):
+        with open("config.json", "r") as config:
+            data = json.load(config)
+        path = data["savePath"]["value"]
+        os.startfile(path)
+
+    def del_results(self):
+        with open("config.json", "r") as config:
+            data = json.load(config)
+        path = data["savePath"]["value"]
+        for protein in data["proteins"]["value"]:
+            os.remove(f"{path}/{protein}.xlsx")
+        output = ', '.join(data["proteins"]["value"])
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setWindowTitle("Ready")
+        msg.setText(
+                f"Ready! Was deleted: {output}"
+        )
+        msg.setFixedSize(600, 600)
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
+
+    def clear_all(self):
+        self.peptidesInput.setText("")
+        self.proteinsInput.setText("")
 
     def change_theme(self):
         if self.theme == "light":
