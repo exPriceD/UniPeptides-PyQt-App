@@ -13,4 +13,4 @@ A program for searching for biologically active peptides in proteins by parsing 
 - **Openpyxl**
 
 # Interface
-![alt text](https://github.com/exPriceD/UniPeptides-PyQt-App/static/images/DIGBKSGAilc.jpg)
+![alt text](https://github.com/exPriceD/UniPeptides-PyQt-App/blob/master/static/images/DIGBKSGAilc.jpg)
